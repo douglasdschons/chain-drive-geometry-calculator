@@ -1,0 +1,1172 @@
+\documentclass[12pt,a4paper]{article}
+
+% ============================================================
+% Packages
+% ============================================================
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{hyperref}
+
+\geometry{margin=2.5cm}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    citecolor=black,
+    urlcolor=blue
+}
+
+% ============================================================
+% Figure paths
+% ============================================================
+% This file is intended to be placed inside:
+% docs/complete_mathematical_formulation_en.tex
+%
+% Therefore:
+% - article figures: docs/figures/
+% - CAD validation images: docs/figures/ or ../cad_validation/
+% - auxiliary assets: ../assets/
+%
+% The \safeincludegraphics macro allows the document to compile even
+% when some figure files have not yet been added to the project.
+
+\newcommand{\safeincludegraphics}[2][]{%
+    \IfFileExists{#2}{%
+        \includegraphics[#1]{#2}%
+    }{%
+        \fbox{%
+            \begin{minipage}{0.85\linewidth}
+            \centering
+            \vspace{0.8cm}
+            Figure not yet added to the project:\\
+            \texttt{\detokenize{#2}}
+            \vspace{0.8cm}
+            \end{minipage}
+        }%
+    }%
+}
+
+% ============================================================
+% Title
+% ============================================================
+\title{
+    Mathematical Formulation of the Discrete Polygonal Model\\
+    for Geometric Calculation of Chain Drives
+}
+
+\author{Douglas Delorenzi Schons}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+% ============================================================
+\begin{abstract}
+This work presents the complete mathematical formulation of a computational tool for the geometric calculation of open ASA roller chain drives. Unlike approaches based exclusively on the continuous chain length over sprocket pitch circles, the proposed final model treats the chain as a closed polygon formed by roller centers. The classical continuous formulation is used only as an initial estimate to determine the integer link count and to guide the generation of candidate topologies. The final solution is obtained by selecting a valid discrete topology, while explicitly distinguishing rollers in contact with the sprockets from pitch intervals that form the chain links. The formulation calculates the real center distance, sprocket pitch diameters, link count, offset link requirement, roller distribution, contact topology, technical sheet output, and geometric CAD validation.
+\end{abstract}
+
+\textbf{Keywords:} chain drive; roller chain; sprocket; center distance; computational geometry; Python; CAD; polygonal model; mechanical design.
+
+\newpage
+\tableofcontents
+\newpage
+
+% ============================================================
+\section{Introduction}
+% ============================================================
+
+Chain drives are widely used in mechanical systems because of their robustness, positive power transmission, and the commercial availability of standardized chains and sprockets. In a typical mechanical design task, the designer must select the chain size, define the number of sprocket teeth, calculate pitch diameters, estimate the number of links, and determine a suitable center distance for the assembly.
+
+Although the problem may appear simple at first, an important practical difficulty exists. The idealized geometric path of the chain may be represented by continuous arcs and tangent segments, but the physical chain is formed by rigid links connected by rollers spaced at discrete pitch intervals.
+
+Therefore, the desired center distance specified by the designer does not always correspond to a physically closable assembly with a real chain. This difference becomes more critical when the chain pitch is large, the center distance is short, or the mechanical assembly has restricted space.
+
+The study of chain drives involves different levels of complexity. Geometric, kinematic, dynamic, and quasi-static models are possible. Fuglede and Thomsen investigate exact and approximate kinematics of chain drives, as well as approximate kinematic and dynamic models \cite{fuglede2016mmt,fuglede2016jsv}. Other works address chains in industrial or efficiency-oriented applications, such as long heavy-duty chains for bucket elevators \cite{kim2017} and quasi-static models for efficiency calculation in track cycling \cite{lanaspeze2024}.
+
+The present work has a more specific scope. It does not aim to replace dynamic analysis, efficiency calculation, vibration analysis, fatigue analysis, or wear analysis. Its objective is to explicitly and traceably solve the discrete geometric closure problem of an open roller chain drive, considering roller centers and the sprocket contact topology.
+
+% ============================================================
+\section{Practical Design Motivation}
+% ============================================================
+
+In mechanical design, roller chain drive verification is often performed iteratively in CAD. The designer may draw an approximate path for the chain, place three-dimensional chain link models, apply geometric relationships, adjust the center distance, and repeat the process until an acceptable assembly is obtained.
+
+It is important to distinguish the physical system from the geometric model used during design. A real chain has clearances, manufacturing tolerances, elastic deformation, wear, lubrication effects, distributed contact, and small positioning variations during assembly. Therefore, the geometric model is not intended to represent all physical phenomena of the transmission.
+
+Even so, the geometric model is essential in the CAD environment. In a parametric assembly, the components must close geometrically: roller centers, sprocket pitch circles, straight spans, and pitch intervals must be compatible. If the geometric trajectory of the roller centers is not consistent with the integer number of chain links, the CAD assembly cannot close without artificial deformation, interference, or manual adjustments.
+
+This problem is especially relevant when:
+
+\begin{itemize}
+    \item the chain pitch is large;
+    \item the center distance is short;
+    \item there is limited space for adjustment in the assembly;
+    \item the sprocket positions are constrained by other components;
+    \item adding or removing one link significantly changes the final geometry.
+\end{itemize}
+
+The iterative CAD process can work, but it has limitations:
+
+\begin{itemize}
+    \item it consumes time;
+    \item it depends on trial and error;
+    \item it reduces mathematical traceability;
+    \item it may create inconsistencies between calculation and CAD assembly;
+    \item it does not clearly expose the relationship between link count, contact rollers, and real center distance.
+\end{itemize}
+
+The motivation of this work is to replace this iterative step with an explicit computational formulation that can quickly provide a valid topology and a real center distance compatible with the discrete distribution of roller centers.
+
+This approach is also related to parametric CAD problems, because the final geometry depends on parameters and constraints. Geometric constraint solving in CAD is a recurring topic in the literature, discussed by Bettig and Hoffmann \cite{bettig2011}, Zou et al. \cite{zou2022}, and Fudos and Hoffmann \cite{fudos1996}. In this work, the chain drive is treated as a parametrized geometric problem in which roller centers must simultaneously satisfy pitch, contact, symmetry, and closure constraints.
+
+% ============================================================
+\section{Related Work}
+% ============================================================
+
+The study of roller chains can be approached from different perspectives.
+
+Fuglede and Thomsen \cite{fuglede2016mmt} present an exact and approximate analysis of roller chain drive kinematics. Their work treats the chain drive as a discrete mechanical system and shows that the kinematic variation is not adequately represented by a purely continuous interpretation. In another work, Fuglede and Thomsen \cite{fuglede2016jsv} develop an approximate kinematic and dynamic model of a roller chain drive, addressing effects beyond simple geometric calculation.
+
+Kim, Chung, and Song \cite{kim2017} investigate the dynamic analysis of a long heavy-duty roller chain for a bucket elevator of a continuous ship unloader. This type of application shows that industrial chains may require specific dynamic analysis, especially when large lengths, high loads, and severe operating conditions are involved.
+
+Mulik and Gujar \cite{mulik2016} present a literature review on simulation and analysis of timing chains in automotive engines. Although the scope is different from the present work, the reference is useful to contextualize the complexity of real chain systems, which may involve vibration, contact, tensioners, guides, and transient behavior.
+
+Lanaspeze, Guilbert, and Manin \cite{lanaspeze2024} present a quasi-static chain drive model applied to efficiency calculation in track cycling. This type of approach considers losses and performance aspects that are outside the scope of the tool presented here, but it reinforces the diversity of possible models for chain drives.
+
+In the field of CAD and geometric modeling, Bettig and Hoffmann \cite{bettig2011} discuss geometric constraint solving in parametric CAD, while Zou et al. \cite{zou2022} present a review on geometric constraint solving. Fudos and Hoffmann \cite{fudos1996} address constraint-based parametric conics for CAD, and Farin, Hoschek, and Kim \cite{farin2002} provide a broad foundation in computer-aided geometric design.
+
+The present work is positioned between these fields. It does not propose a complete dynamic model, but it also does not remain limited to a classical continuous formula. Its contribution is the formulation and implementation of a discrete polygonal roller-center model suitable for geometric calculation and CAD validation of open roller chain drives.
+
+% ============================================================
+\section{Bibliographic Reference Usage Map}
+% ============================================================
+
+This section explicitly records where each reference is used in the document. In a later scientific article version, this section may be removed while keeping the citations distributed throughout the text.
+
+\begin{longtable}{p{0.22\textwidth} p{0.68\textwidth}}
+\toprule
+\textbf{Reference} & \textbf{Use in the text} \\
+\midrule
+\endhead
+
+\cite{zou2022} &
+Used to contextualize geometric constraint solving in parametric CAD and justify the formulation of the problem as a geometric constraint system. \\
+
+\cite{fudos1996} &
+Used to relate the formulation to constraint-based CAD and parametric representation of geometric entities. \\
+
+\cite{kim2017} &
+Used to contextualize that industrial chains may require dynamic models that are more complex than the current scope. \\
+
+\cite{bettig2011} &
+Used to support the relationship between the proposed problem and geometric constraint solving in parametric CAD. \\
+
+\cite{farin2002} &
+Used as a general reference for geometric modeling and computer-aided geometric design. \\
+
+\cite{fuglede2016jsv} &
+Used to contextualize approximate kinematic and dynamic models of chain drives. \\
+
+\cite{fuglede2016mmt} &
+Used as a central reference for the relevance of exact and approximate kinematic analysis of roller chain drives. \\
+
+\cite{mulik2016} &
+Used to contextualize simulation and analysis of automotive timing chains. \\
+
+\cite{lanaspeze2024} &
+Used to contextualize quasi-static models and efficiency calculation, delimiting the scope of the present work. \\
+
+\bottomrule
+\end{longtable}
+
+% ============================================================
+\section{Scope and Assumptions}
+% ============================================================
+
+The developed model considers:
+
+\begin{itemize}
+    \item an open roller chain drive;
+    \item two sprockets;
+    \item parallel axes;
+    \item centers aligned on the horizontal axis;
+    \item the chain represented by roller centers;
+    \item sprockets represented by their pitch circles;
+    \item symmetric straight spans;
+    \item no tensioner;
+    \item no intermediate sprocket;
+    \item an ideal chain without clearance, wear, or elongation;
+    \item geometric validation by pitch error and self-intersection checks.
+\end{itemize}
+
+The following aspects are not considered at this stage:
+
+\begin{itemize}
+    \item transmitted power;
+    \item chain tension;
+    \item service factor;
+    \item fatigue;
+    \item lubrication;
+    \item wear;
+    \item impact;
+    \item vibration;
+    \item contact dynamics;
+    \item angular speed variation;
+    \item load-capacity-based selection.
+\end{itemize}
+
+These limitations are intentional. The objective is to solve the discrete geometric closure of the chain, not to replace dynamic, quasi-static, or efficiency models such as those discussed in \cite{kim2017,fuglede2016jsv,lanaspeze2024}.
+
+% ============================================================
+\section{Input Data}
+% ============================================================
+
+The main input data are:
+
+\begin{equation}
+p,\quad z_1,\quad z_2,\quad C_{\text{desired}}
+\end{equation}
+
+where:
+
+\begin{itemize}
+    \item $p$ is the chain pitch;
+    \item $z_1$ is the number of teeth of the smaller sprocket;
+    \item $z_2$ is the number of teeth of the larger sprocket;
+    \item $C_{\text{desired}}$ is the center distance desired by the designer.
+\end{itemize}
+
+The total number of links $N$ is not supplied directly. It is first estimated using a classical continuous formulation and then rounded to an integer value.
+
+% ============================================================
+\section{Catalog-Based Tooth Count Restriction}
+% ============================================================
+
+In the implemented tool, the user first selects the ASA chain size. Based on this selection, the program restricts the available sprocket tooth counts using a table extracted from the ENCO catalog.
+
+This input barrier prevents the selection of tooth counts that may be mathematically possible but do not correspond to the commercial options considered in the project.
+
+The adopted logic separates the tooth count options by chain groups:
+
+\begin{itemize}
+    \item ASA 35 to ASA 80;
+    \item ASA 100;
+    \item ASA 120;
+    \item ASA 140;
+    \item ASA 160.
+\end{itemize}
+
+This step does not change the mathematical formulation of the solver. It acts as an input restriction to reduce combinations that are incompatible with the adopted catalog.
+
+% ============================================================
+\section{Sprocket Pitch Geometry}
+% ============================================================
+
+For a chain with pitch $p$ meshing with a sprocket with $z$ teeth, the pitch radius of the roller centers is:
+
+\begin{equation}
+r = \frac{p}{2\sin\left(\frac{\pi}{z}\right)}
+\end{equation}
+
+Thus:
+
+\begin{equation}
+r_1 = \frac{p}{2\sin\left(\frac{\pi}{z_1}\right)}
+\end{equation}
+
+\begin{equation}
+r_2 = \frac{p}{2\sin\left(\frac{\pi}{z_2}\right)}
+\end{equation}
+
+The pitch diameters are:
+
+\begin{equation}
+D_1 = 2r_1
+\end{equation}
+
+\begin{equation}
+D_2 = 2r_2
+\end{equation}
+
+or equivalently:
+
+\begin{equation}
+D_N = \frac{p}{\sin\left(\frac{\pi}{z}\right)}
+\end{equation}
+
+The angular increment between consecutive roller positions on the pitch circle is:
+
+\begin{equation}
+\delta_1 = \frac{2\pi}{z_1}
+\end{equation}
+
+\begin{equation}
+\delta_2 = \frac{2\pi}{z_2}
+\end{equation}
+
+These angles determine the possible discrete positions of roller centers on the sprockets.
+
+% ============================================================
+\section{Maximum Outside Diameter and Minimum Center Distance}
+% ============================================================
+
+In addition to the pitch diameter, the program calculates a conservative estimate of the maximum outside diameter of the sprocket:
+
+\begin{equation}
+D_{E,\max}=D_N+1.25p-D_R
+\end{equation}
+
+where:
+
+\begin{itemize}
+    \item $D_{E,\max}$ is the maximum outside diameter;
+    \item $D_N$ is the nominal or pitch diameter;
+    \item $p$ is the chain pitch;
+    \item $D_R$ is the roller diameter.
+\end{itemize}
+
+The minimum center distance adopted by the program is:
+
+\begin{equation}
+C_{\min}=
+\frac{D_{E1,\max}+D_{E2,\max}}{2}
++
+c
+\end{equation}
+
+with:
+
+\begin{equation}
+c=5\ \mathrm{mm}
+\end{equation}
+
+Therefore:
+
+\begin{equation}
+C_{\min}=
+\frac{D_{E1,\max}+D_{E2,\max}}{2}
++
+5
+\end{equation}
+
+If:
+
+\begin{equation}
+C_{\text{desired}} < C_{\min}
+\end{equation}
+
+the program blocks the input, preventing physically incompatible geometries from being generated.
+
+This step does not replace a detailed tooth profile analysis. It acts as a conservative input barrier.
+
+% ============================================================
+\section{Initial Continuous Estimate}
+% ============================================================
+
+Define:
+
+\begin{equation}
+\Delta r = r_2-r_1
+\end{equation}
+
+For a center distance $C$, the auxiliary external tangent angle is:
+
+\begin{equation}
+\alpha(C)=\arcsin\left(\frac{\Delta r}{C}\right)
+\end{equation}
+
+The continuous external tangent length is:
+
+\begin{equation}
+T(C)=\sqrt{C^2-\Delta r^2}
+\end{equation}
+
+The continuous contact angles are:
+
+\begin{equation}
+\beta_1(C)=\pi-2\alpha(C)
+\end{equation}
+
+\begin{equation}
+\beta_2(C)=\pi+2\alpha(C)
+\end{equation}
+
+The approximate continuous chain length is:
+
+\begin{equation}
+\begin{aligned}
+L_{\text{cont}}(C)
+&=
+r_1\beta_1(C)
++
+r_2\beta_2(C)
++
+2T(C)
+\end{aligned}
+\end{equation}
+
+The estimated continuous number of links is:
+
+\begin{equation}
+N_{\text{cont}}=
+\frac{L_{\text{cont}}(C_{\text{desired}})}{p}
+\end{equation}
+
+Then:
+
+\begin{equation}
+N=\mathrm{round}(N_{\text{cont}})
+\end{equation}
+
+From this point onward, $N$ is fixed.
+
+The kinematic literature on chain drives shows that continuous approximations may be useful, but they do not replace the discrete nature of the mechanical system \cite{fuglede2016mmt,fuglede2016jsv}. Therefore, in this work, the continuous model is used only as an initial estimate.
+
+% ============================================================
+\section{Continuous Reference Center Distance}
+% ============================================================
+
+After $N$ is defined, a continuous reference center distance $C_{\text{ref}}$ is calculated such that:
+
+\begin{equation}
+L_{\text{cont}}(C_{\text{ref}})=Np
+\end{equation}
+
+This value is not the final solution. It is used only to:
+
+\begin{itemize}
+    \item estimate candidate contact distributions;
+    \item prioritize topologies close to the continuous solution;
+    \item avoid an excessively wide search among discrete combinations.
+\end{itemize}
+
+In the current implementation, this reference value is computed numerically. However, the final center distance of the polygonal solution is obtained from the discrete topology, as presented in the following sections.
+
+% ============================================================
+\section{Discrete Polygonal Model Based on Roller Centers}
+% ============================================================
+
+In the proposed model, the chain is represented by the discrete sequence of roller centers. This choice is consistent with the use of sprocket pitch circles and with the need to obtain a geometry compatible with CAD assembly.
+
+In the classical continuous formulation, the straight spans are treated as tangent segments to the pitch circles, and the contact arcs are treated as continuous lengths. This representation is useful for initial estimates, but it does not directly determine which rollers are located at the contact entry and exit points.
+
+In a discrete formulation, the straight chain spans must be defined by the roller centers located at the endpoints of the contact region. Thus, the upper span is defined by the center of the exiting roller on the smaller sprocket and the center of the entering roller on the larger sprocket. Similarly, the lower span is defined by the corresponding roller centers on the lower side of the drive.
+
+This interpretation is compatible with the kinematic analysis of roller chains presented by Fuglede and Thomsen \cite{fuglede2016mmt}, in which the chain span is treated from points associated with the common tangent and its extension must correspond to an integer number of pitches.
+
+In this work, the following counting distinction is adopted:
+
+\begin{itemize}
+    \item \textbf{contact rollers:} physical elements positioned in the sprocket seats and used to define the discrete contact region;
+    \item \textbf{pitch intervals:} segments between consecutive roller centers, used to count the discrete chain length.
+\end{itemize}
+
+Define:
+
+\begin{itemize}
+    \item $M_1$: number of rollers in contact with the smaller sprocket;
+    \item $M_2$: number of rollers in contact with the larger sprocket;
+    \item $S$: number of pitch intervals in the upper straight span;
+    \item $R$: number of pitch intervals in the lower straight span;
+    \item $N$: total number of chain links.
+\end{itemize}
+
+If there are $M_1$ rollers in contact with the smaller sprocket, there are $M_1-1$ pitch intervals along that arc. Similarly, if there are $M_2$ rollers in contact with the larger sprocket, there are $M_2-1$ pitch intervals along that arc.
+
+Therefore, the global topological equation is:
+
+\begin{equation}
+(M_1-1)+S+(M_2-1)+R=N
+\label{eq:topological_closure}
+\end{equation}
+
+or:
+
+\begin{equation}
+M_1+M_2+S+R=N+2
+\end{equation}
+
+This equation defines the discrete structure of the chain. It states that the total chain length is counted by pitch intervals, while the sprocket contact is described by the number of rollers positioned on the pitch circles.
+
+The proposed formulation approaches the idealized physical assembly used in CAD because it counts roller centers and real pitch intervals instead of only continuous arc lengths. This perspective is compatible with kinematic studies of chain drives that explicitly treat the discrete nature of the system \cite{fuglede2016mmt,fuglede2016jsv}.
+
+% ============================================================
+\section{Coordinate System}
+% ============================================================
+
+Let:
+
+\begin{equation}
+O_1=(0,0)
+\end{equation}
+
+\begin{equation}
+O_2=(C,0)
+\end{equation}
+
+where:
+
+\begin{itemize}
+    \item $O_1$ is the center of the smaller sprocket;
+    \item $O_2$ is the center of the larger sprocket;
+    \item $C$ is the real center distance to be calculated.
+\end{itemize}
+
+The analyzed drive is an open chain drive with sprocket centers aligned along the $X$ axis.
+
+% ============================================================
+\section{Symmetry Formulation}
+% ============================================================
+
+For each sprocket, define:
+
+\begin{equation}
+q=\frac{M-1}{2}
+\end{equation}
+
+This value may be integer or half-integer.
+
+If $M$ is odd, one roller lies on the symmetry axis. If $M$ is even, the symmetry axis lies between two rollers.
+
+This formulation corrects the previous assumption of always forcing a roller onto the symmetry axis. That assumption works only when $M$ is odd. When $M$ is even, it produces a visually incorrect geometry, because it places a roller where a symmetric separation between two rollers should exist.
+
+% ============================================================
+\subsection{Smaller Sprocket}
+% ============================================================
+
+For the smaller sprocket:
+
+\begin{equation}
+q_1=\frac{M_1-1}{2}
+\end{equation}
+
+The endpoints of the contact region are:
+
+\begin{equation}
+A_t =
+O_1+
+r_1
+\begin{bmatrix}
+\cos(\pi-q_1\delta_1)\\
+\sin(\pi-q_1\delta_1)
+\end{bmatrix}
+\end{equation}
+
+\begin{equation}
+A_b =
+O_1+
+r_1
+\begin{bmatrix}
+\cos(\pi+q_1\delta_1)\\
+\sin(\pi+q_1\delta_1)
+\end{bmatrix}
+\end{equation}
+
+where:
+
+\begin{itemize}
+    \item $A_t$ is the upper endpoint of the contact region on the smaller sprocket;
+    \item $A_b$ is the corresponding lower endpoint;
+    \item $q_1$ controls the angular opening of the contact region.
+\end{itemize}
+
+If $M_1$ is odd, $q_1$ is an integer and one roller lies on the negative $X$ axis.
+
+If $M_1$ is even, $q_1$ is half-integer and the negative $X$ axis lies between two symmetric rollers.
+
+% ============================================================
+\subsection{Larger Sprocket}
+% ============================================================
+
+For the larger sprocket:
+
+\begin{equation}
+q_2=\frac{M_2-1}{2}
+\end{equation}
+
+The endpoints of the contact region are:
+
+\begin{equation}
+B_t(C)=
+O_2+
+r_2
+\begin{bmatrix}
+\cos(q_2\delta_2)\\
+\sin(q_2\delta_2)
+\end{bmatrix}
+\end{equation}
+
+\begin{equation}
+B_b(C)=
+O_2+
+r_2
+\begin{bmatrix}
+\cos(-q_2\delta_2)\\
+\sin(-q_2\delta_2)
+\end{bmatrix}
+\end{equation}
+
+where:
+
+\begin{itemize}
+    \item $B_t$ is the upper endpoint of the contact region on the larger sprocket;
+    \item $B_b$ is the corresponding lower endpoint.
+\end{itemize}
+
+If $M_2$ is odd, one roller lies on the positive $X$ axis. If $M_2$ is even, the axis lies between two rollers.
+
+% ============================================================
+\section{Straight Span Equations}
+% ============================================================
+
+The upper straight span connects:
+
+\begin{equation}
+A_t \rightarrow B_t
+\end{equation}
+
+If it has $S$ pitch intervals, then:
+
+\begin{equation}
+\left\lVert B_t(C)-A_t \right\rVert = Sp
+\label{eq:upper_run}
+\end{equation}
+
+The lower straight span connects:
+
+\begin{equation}
+B_b \rightarrow A_b
+\end{equation}
+
+If it has $R$ pitch intervals, then:
+
+\begin{equation}
+\left\lVert A_b-B_b(C) \right\rVert = Rp
+\label{eq:lower_run}
+\end{equation}
+
+In the symmetric case treated in this version:
+
+\begin{equation}
+S=R
+\end{equation}
+
+% ============================================================
+\section{Direct Calculation of the Real Center Distance}
+% ============================================================
+
+Writing:
+
+\begin{equation}
+B_t(C)=
+\begin{bmatrix}
+C+r_2\cos(q_2\delta_2)\\
+r_2\sin(q_2\delta_2)
+\end{bmatrix}
+\end{equation}
+
+and:
+
+\begin{equation}
+A_t=
+\begin{bmatrix}
+A_{t,x}\\
+A_{t,y}
+\end{bmatrix}
+\end{equation}
+
+the upper span condition gives:
+
+\begin{equation}
+\begin{aligned}
+&
+\left(C+r_2\cos(q_2\delta_2)-A_{t,x}\right)^2
++
+\left(r_2\sin(q_2\delta_2)-A_{t,y}\right)^2
+\\
+&=
+(Sp)^2
+\end{aligned}
+\end{equation}
+
+Solving for $C$:
+
+\begin{equation}
+\begin{aligned}
+C
+&=
+A_{t,x}
+-
+r_2\cos(q_2\delta_2)
+\\
+&\quad+
+\sqrt{
+(Sp)^2
+-
+\left[
+r_2\sin(q_2\delta_2)-A_{t,y}
+\right]^2
+}
+\end{aligned}
+\label{eq:direct_center_distance}
+\end{equation}
+
+The positive sign of the square root is used because the second sprocket is located to the right of the first one.
+
+This equation provides the real center distance within the discrete polygonal model for a valid candidate topology. Therefore, the final solution does not depend on treating the chain as a continuous curve. The continuous model only guides the search for plausible topologies.
+
+% ============================================================
+\section{Candidate Topology Generation and Selection}
+% ============================================================
+
+The topology is defined by:
+
+\begin{equation}
+(M_1,\ S,\ M_2,\ R)
+\end{equation}
+
+It must satisfy the topological equation \eqref{eq:topological_closure}.
+
+Candidate topology generation uses the continuous estimates as reference values, but only accepts valid discrete topologies.
+
+For each candidate topology, the algorithm:
+
+\begin{enumerate}
+    \item computes $q_1$ and $q_2$;
+    \item computes $A_t$, $A_b$, $B_t(C)$, and $B_b(C)$;
+    \item computes $C$ using equation \eqref{eq:direct_center_distance};
+    \item validates the lower span using equation \eqref{eq:lower_run};
+    \item builds the polygon of roller centers;
+    \item checks the maximum pitch error;
+    \item checks self-intersections;
+    \item ranks the solution.
+\end{enumerate}
+
+% ============================================================
+\section{Geometric Validation Criteria}
+% ============================================================
+
+A solution is accepted only if it satisfies the topological equation:
+
+\begin{equation}
+(M_1-1)+S+(M_2-1)+R=N
+\end{equation}
+
+The upper span must satisfy:
+
+\begin{equation}
+\left|
+\left\lVert B_t-A_t \right\rVert
+-
+Sp
+\right|
+<
+\varepsilon
+\end{equation}
+
+The lower span must satisfy:
+
+\begin{equation}
+\left|
+\left\lVert A_b-B_b \right\rVert
+-
+Rp
+\right|
+<
+\varepsilon
+\end{equation}
+
+All consecutive polygon segments must satisfy:
+
+\begin{equation}
+\left\lVert P_{i+1}-P_i \right\rVert=p
+\end{equation}
+
+The maximum pitch error is:
+
+\begin{equation}
+e_{\max}
+=
+\max_i
+\left|
+\left\lVert P_{i+1}-P_i \right\rVert
+-
+p
+\right|
+\end{equation}
+
+In addition, the closed polygon must not have invalid self-intersections.
+
+The self-intersection check is relevant because a topology may satisfy the global counting equation and still generate a physically invalid geometry.
+
+% ============================================================
+\section{Computational Outputs}
+% ============================================================
+
+The Python implementation generates two main outputs:
+
+\begin{itemize}
+    \item a geometric plot of the polygonal model;
+    \item an A4 technical sheet containing input data, calculated geometry, and chain dimensions.
+\end{itemize}
+
+The geometric plot includes:
+
+\begin{itemize}
+    \item the polygon of roller centers;
+    \item sprocket pitch circles;
+    \item sprocket centers;
+    \item calculated real center distance;
+    \item total link count;
+    \item $M_1/S/M_2/R$ topology.
+\end{itemize}
+
+The technical sheet includes information blocks for:
+
+\begin{itemize}
+    \item input data;
+    \item calculated drive geometry;
+    \item chain dimensions;
+    \item an auxiliary dimensional nomenclature image.
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \safeincludegraphics[width=0.80\textwidth]{figures/plot_2.png}
+    \caption{Example of the technical sheet automatically generated by the program.}
+    \label{fig:technical_sheet}
+\end{figure}
+
+% ============================================================
+\section{Results and Validation Cases}
+% ============================================================
+
+\subsection{\texorpdfstring{Case 1: ASA 80, $z_1=11$, $z_2=20$}{Case 1: ASA 80, z1=11, z2=20}}
+
+Input data:
+
+\begin{equation}
+p=25.40\ \mathrm{mm}
+\end{equation}
+
+\begin{equation}
+z_1=11,\quad z_2=20,\quad C_{\text{desired}}=195\ \mathrm{mm}
+\end{equation}
+
+Result:
+
+\begin{equation}
+N=31
+\end{equation}
+
+\begin{equation}
+M_1/S/M_2/R=5/8/12/8
+\end{equation}
+
+The topological equation closes:
+
+\begin{equation}
+(5-1)+8+(12-1)+8=31
+\end{equation}
+
+\begin{equation}
+4+8+11+8=31
+\end{equation}
+
+The real center distance calculated by the polygonal model is approximately:
+
+\begin{equation}
+C_{\text{real}}\approx193.36\ \mathrm{mm}
+\end{equation}
+
+\begin{figure}[H]
+    \centering
+    \safeincludegraphics[width=0.95\textwidth]{figures/polygonal_layout_asa80_11_20.png}
+    \caption{Discrete polygonal model for the ASA 80 case, $z_1=11$, $z_2=20$.}
+    \label{fig:asa80_11_20_polygonal}
+\end{figure}
+
+% ============================================================
+\subsection{\texorpdfstring{Case 2: ASA 80, $z_1=19$, $z_2=20$}{Case 2: ASA 80, z1=19, z2=20}}
+% ============================================================
+
+The second validation case also uses an ASA 80 chain, with:
+
+\begin{equation}
+p=25.40\ \mathrm{mm}
+\end{equation}
+
+The analyzed configuration is:
+
+\begin{equation}
+z_1=19,\quad z_2=20,\quad C_{\text{desired}}=350\ \mathrm{mm}
+\end{equation}
+
+The algorithm computed:
+
+\begin{equation}
+N=47
+\end{equation}
+
+and selected the discrete topology:
+
+\begin{equation}
+M_1/S/M_2/R=10/14/11/14
+\end{equation}
+
+The topological equation closes:
+
+\begin{equation}
+(10-1)+14+(11-1)+14=47
+\end{equation}
+
+or:
+
+\begin{equation}
+9+14+10+14=47
+\end{equation}
+
+Since:
+
+\begin{equation}
+M_1=10
+\end{equation}
+
+the number of rollers in contact with the smaller sprocket is even. Therefore, there should not be a real roller exactly on the negative $X$ axis of the smaller sprocket. The symmetry axis lies between two rollers.
+
+The formulation handles this situation using:
+
+\begin{equation}
+q_1=\frac{10-1}{2}=4.5
+\end{equation}
+
+and correctly positions the contact region around the symmetry axis, without forcing a roller where one should not physically exist.
+
+The calculated real center distance is approximately:
+
+\begin{equation}
+C_{\text{real}}\approx349.20\ \mathrm{mm}
+\end{equation}
+
+\begin{figure}[H]
+    \centering
+    \safeincludegraphics[width=0.95\textwidth]{figures/polygonal_layout_asa80_19_20.png}
+    \caption{Discrete polygonal model for the ASA 80 case, $z_1=19$, $z_2=20$, with an even number of contact rollers on the smaller sprocket.}
+    \label{fig:asa80_19_20_polygonal}
+\end{figure}
+
+% ============================================================
+\section{CAD Validation}
+% ============================================================
+
+CAD validation was used to verify whether the topology calculated by the polygonal model can be reproduced in an assembly, respecting roller centers, chain pitch, sprocket contact, and the absence of visible interferences.
+
+This step is important because the goal of the tool is not merely to produce a center distance number, but to support the real mechanical design and parametric modeling process. In this sense, the work is related to geometric constraint problems in CAD \cite{bettig2011,zou2022}.
+
+\begin{figure}[H]
+    \centering
+
+    \safeincludegraphics[width=0.95\textwidth]{figures/plot_1.png}
+
+    \vspace{0.5cm}
+
+    \safeincludegraphics[width=0.95\textwidth]{figures/cd_1.png}
+
+    \caption{Comparison between the polygonal model output and CAD validation for the first case.}
+    \label{fig:cad_validation_case_1}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+
+    \safeincludegraphics[width=0.85\textwidth]{figures/plot_2.png}
+
+    \vspace{0.5cm}
+
+    \safeincludegraphics[width=0.95\textwidth]{figures/cd_2.png}
+
+    \caption{Comparison between the polygonal model output and CAD validation for the second case.}
+    \label{fig:cad_validation_case_2}
+\end{figure}
+
+% ============================================================
+\section{Discussion}
+% ============================================================
+
+The developed formulation is more suitable for parametric CAD applications than a purely continuous approach, because the final geometry is built from discrete roller positions and real pitch intervals.
+
+An important contribution of the formulation is to explicitly represent, for computational purposes, the difference between contact rollers and pitch intervals. This distinction allows the model to treat topologies with even or odd numbers of contact rollers without artificially imposing a roller on the symmetry axis.
+
+The equation:
+
+\begin{equation}
+(M_1-1)+S+(M_2-1)+R=N
+\end{equation}
+
+is the topological core of the model. It states that the chain length is formed by pitch intervals, while sprocket contact is determined by rollers.
+
+The rule:
+
+\begin{equation}
+q=\frac{M-1}{2}
+\end{equation}
+
+is the geometric core of the symmetry formulation. It allows the same model to handle two distinct cases:
+
+\begin{itemize}
+    \item odd $M$: one roller lies on the symmetry axis;
+    \item even $M$: the symmetry axis lies between two rollers.
+\end{itemize}
+
+This correction removes an important fragility from models that implicitly assume the existence of a central roller in every case.
+
+% ============================================================
+\section{Limitations}
+% ============================================================
+
+The current model assumes:
+
+\begin{itemize}
+    \item open chain drive;
+    \item centers aligned on the $X$ axis;
+    \item no tensioner;
+    \item no intermediate sprocket;
+    \item symmetric contact;
+    \item ideal chain without clearance;
+    \item sprockets represented by pitch circles;
+    \item no wear;
+    \item no elongation;
+    \item no load analysis;
+    \item no power calculation;
+    \item no service factor;
+    \item no dynamic analysis.
+\end{itemize}
+
+Small differences between the mathematical solution and the CAD assembly may arise from:
+
+\begin{itemize}
+    \item dimension rounding;
+    \item real chain clearances;
+    \item exact tooth profile;
+    \item differences between the theoretical pitch circle and the imported CAD geometry;
+    \item constraints applied directly to faces in the CAD software instead of mathematical centers.
+\end{itemize}
+
+Therefore, the proposed model should be interpreted as a geometric calculation and design-support tool, not as a complete chain drive design analysis.
+
+% ============================================================
+\section{Future Work}
+% ============================================================
+
+In future work, the tool may be expanded to include:
+
+\begin{itemize}
+    \item a Streamlit web interface;
+    \item automatic selection by load capacity;
+    \item chain speed calculation;
+    \item service factors;
+    \item power evaluation;
+    \item allowable elongation;
+    \item tensioners;
+    \item drives with more than two sprockets;
+    \item CAD geometry export;
+    \item automatic technical report generation.
+\end{itemize}
+
+The geometric model may also be coupled with broader kinematic and dynamic analyses, moving closer to the scopes addressed in \cite{fuglede2016jsv,fuglede2016mmt,kim2017,lanaspeze2024}.
+
+% ============================================================
+\section{Conclusion}
+% ============================================================
+
+This work presented a discrete polygonal formulation for the geometric calculation of open roller chain drives. The formulation starts from the classical continuous model, but uses that model only as an initial estimate.
+
+The final solution is calculated through the discrete topology of roller centers, satisfying the equation:
+
+\begin{equation}
+(M_1-1)+S+(M_2-1)+R=N
+\end{equation}
+
+The rule:
+
+\begin{equation}
+q=\frac{M-1}{2}
+\end{equation}
+
+allows the model to correctly handle both cases in which a roller exists on the symmetry axis and cases in which the axis lies between two rollers.
+
+The result is a computational tool capable of providing real center distance, contact topology, roller distribution, geometric validation, and technical documentation, connecting mechanical design, computational geometry, Python, and CAD validation.
+
+% ============================================================
+\newpage
+\begin{thebibliography}{99}
+
+\bibitem{zou2022}
+Zou, Q.; Tang, Z.; Feng, H.-Y.; Gao, S.; Zhou, C.; Liu, Y.
+\textit{A review on geometric constraint solving}.
+arXiv:2202.13795, 2022.
+DOI: \url{https://doi.org/10.48550/arXiv.2202.13795}
+
+\bibitem{fudos1996}
+Fudos, I.; Hoffmann, C. M.
+\textit{Constraint-based parametric conics for CAD}.
+Computer-Aided Design, 1996.
+DOI: \url{https://doi.org/10.1016/0010-4485(95)00037-2}
+
+\bibitem{kim2017}
+Kim, C.-U.; Chung, J.-Y.; Song, J.-I.
+\textit{Dynamic analysis of long heavy-duty roller chain for bucket elevator of continuous ship unloader}.
+Advances in Mechanical Engineering, 2017.
+DOI: \url{https://doi.org/10.1177/1687814017723296}
+
+\bibitem{bettig2011}
+Bettig, B.; Hoffmann, C. M.
+\textit{Geometric constraint solving in parametric CAD}.
+Journal of Computing and Information Science in Engineering, 2011.
+DOI: \url{https://doi.org/10.1115/1.3593408}
+
+\bibitem{farin2002}
+Farin, G.; Hoschek, J.; Kim, M.-S. (eds.).
+\textit{Handbook of Computer Aided Geometric Design}.
+Elsevier / North-Holland, 2002.
+DOI: \url{https://doi.org/10.1016/B978-0-444-51104-1.X5000-X}
+
+\bibitem{fuglede2016jsv}
+Fuglede, N.; Thomsen, J. J.
+\textit{Kinematic and dynamic modeling and approximate analysis of a roller chain drive}.
+Journal of Sound and Vibration, 366, 447--470, 2016.
+DOI: \url{https://doi.org/10.1016/j.jsv.2015.12.028}
+
+\bibitem{fuglede2016mmt}
+Fuglede, N.; Thomsen, J. J.
+\textit{Kinematics of roller chain drives -- Exact and approximate analysis}.
+Mechanism and Machine Theory, 100, 17--32, 2016.
+DOI: \url{https://doi.org/10.1016/j.mechmachtheory.2016.01.009}
+
+\bibitem{mulik2016}
+Mulik, A. V.; Gujar, A. J.
+\textit{Literature Review on Simulation and Analysis of Timing Chain of an Automotive Engine}.
+International Journal of Engineering Research and Application, 6(8), Part 1, 17--21, 2016.
+
+\bibitem{lanaspeze2024}
+Lanaspeze, G.; Guilbert, B.; Manin, L.
+\textit{Quasi-static chain drive model for efficiency calculation -- Application to track cycling}.
+Mechanism and Machine Theory, 2024.
+DOI: \url{https://doi.org/10.1016/j.mechmachtheory.2024.105780}
+
+\end{thebibliography}
+
+\end{document}
