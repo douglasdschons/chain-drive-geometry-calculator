@@ -90,7 +90,7 @@ def parse_sprocket_teeth_options() -> dict[str, list[int]]:
     )
 
     if reader.fieldnames is None:
-        raise ValueError("Tabela de dentes ENCO inválida.")
+        raise ValueError("Invalid ENCO sprocket tooth table.")
 
     group_options: dict[str, list[int]] = {
         group_name: []
@@ -228,7 +228,7 @@ def get_chain_data(chain_size: str) -> dict[str, Any]:
             return row
 
     available = " | ".join(row["asa_size"] for row in ASA_CHAIN_CATALOG)
-    raise ValueError(f"Corrente ASA {chain_size} não encontrada. Opções: {available}")
+    raise ValueError(f"ASA chain size {chain_size} was not found. Available options: {available}")
 
 
 def ask_chain_size() -> dict[str, Any]:
@@ -242,8 +242,8 @@ def ask_chain_size() -> dict[str, Any]:
 
     while True:
         print()
-        print(f"Correntes ASA disponíveis com tabela ENCO de engrenagens: {available}")
-        raw = input("Selecione o tamanho da corrente ASA: ").strip()
+        print(f"Available ASA chain sizes with ENCO sprocket tooth tables: {available}")
+        raw = input("Select the ASA chain size: ").strip()
 
         try:
             chain_data = get_chain_data(raw)
@@ -253,8 +253,8 @@ def ask_chain_size() -> dict[str, Any]:
 
         if chain_data["asa_size"] not in SPROCKET_TEETH_OPTIONS_BY_ASA_SIZE:
             print(
-                f"Corrente ASA {chain_data['asa_size']} não possui "
-                "opções de dentes cadastradas na tabela ENCO usada pelo programa."
+                f"ASA chain size {chain_data['asa_size']} does not have "
+                "registered sprocket tooth options in the ENCO table used by this program."
             )
             continue
 
@@ -266,8 +266,8 @@ def get_sprocket_teeth_options(chain_size: str) -> list[int]:
     if normalized not in SPROCKET_TEETH_OPTIONS_BY_ASA_SIZE:
         available = " | ".join(sorted(SPROCKET_TEETH_OPTIONS_BY_ASA_SIZE))
         raise ValueError(
-            f"Não há tabela de dentes para ASA {chain_size}. "
-            f"Correntes com tabela disponível: {available}"
+            f"No sprocket tooth table is available for ASA {chain_size}. "
+            f"Available chain sizes with tooth tables: {available}"
         )
 
     return SPROCKET_TEETH_OPTIONS_BY_ASA_SIZE[normalized]
@@ -279,7 +279,7 @@ def ask_sprocket_teeth(prompt: str, chain_data: dict[str, Any]) -> int:
 
     while True:
         print()
-        print(f"Opções de dentes disponíveis para ASA {chain_data['asa_size']}:")
+        print(f"Available sprocket tooth options for ASA {chain_data['asa_size']}:")
         print(options_text)
 
         raw = input(f"{prompt}: ").strip()
@@ -287,13 +287,13 @@ def ask_sprocket_teeth(prompt: str, chain_data: dict[str, Any]) -> int:
         try:
             value = int(raw)
         except ValueError:
-            print("Digite um número inteiro.")
+            print("Enter an integer value.")
             continue
 
         if value not in options:
             print(
-                f"Número de dentes {value} não disponível para "
-                f"ASA {chain_data['asa_size']} na tabela ENCO."
+                f"Tooth count {value} is not available for "
+                f"ASA {chain_data['asa_size']} in the ENCO table."
             )
             continue
 
@@ -306,11 +306,11 @@ def ask_int(prompt: str) -> int:
         try:
             value = int(raw)
         except ValueError:
-            print("Digite um número inteiro.")
+            print("Enter an integer value.")
             continue
 
         if value <= 2:
-            print("O número de dentes deve ser maior que 2.")
+            print("The number of teeth must be greater than 2.")
             continue
 
         return value
@@ -323,11 +323,11 @@ def ask_float(prompt: str) -> float:
         try:
             value = float(raw)
         except ValueError:
-            print("Digite um número válido.")
+            print("Enter a valid numeric value.")
             continue
 
         if value <= 0:
-            print("O valor deve ser maior que zero.")
+            print("The value must be greater than zero.")
             continue
 
         return value
@@ -340,19 +340,19 @@ def ask_center_distance(prompt: str, minimum_center_distance: float) -> float:
         try:
             value = float(raw)
         except ValueError:
-            print("Digite um número válido.")
+            print("Enter a valid numeric value.")
             continue
 
         if value <= 0:
-            print("O valor deve ser maior que zero.")
+            print("The value must be greater than zero.")
             continue
 
         if value < minimum_center_distance:
             print()
-            print("Entrecentro inválido para esta combinação de engrenagens.")
-            print(f"Entrecentro mínimo permitido: {minimum_center_distance:.3f} mm")
-            print(f"Valor informado: {value:.3f} mm")
-            print("Informe um valor maior ou igual ao mínimo.")
+            print("Invalid center distance for this sprocket combination.")
+            print(f"Minimum allowed center distance: {minimum_center_distance:.3f} mm")
+            print(f"Entered value: {value:.3f} mm")
+            print("Enter a value greater than or equal to the minimum.")
             continue
 
         return value
@@ -441,7 +441,7 @@ def exact_continuous_chain_length(
     radius_delta = r2 - r1
 
     if center_distance_mm <= abs(radius_delta):
-        raise ValueError("Entrecentro inválido para a geometria dos sprockets.")
+        raise ValueError("Invalid center distance for the sprocket geometry.")
 
     alpha = math.asin(radius_delta / center_distance_mm)
     tangent_length = math.sqrt(center_distance_mm**2 - radius_delta**2)
@@ -929,7 +929,7 @@ def solve_symmetric_polygonal_center_distance(
     solutions = solver.solve()
 
     if not solutions:
-        raise RuntimeError("Nenhuma solução simétrica válida foi encontrada.")
+        raise RuntimeError("No valid symmetric polygonal solution was found.")
 
     best = solutions[0]
     topology = best.topology
@@ -979,59 +979,59 @@ def print_results(
 
     print()
     print("=" * 72)
-    print("RESULTADO - MODELO POLIGONAL V4 SIMÉTRICO")
+    print("RESULTS - SYMMETRIC POLYGONAL MODEL")
     print("=" * 72)
-    print(f"Corrente selecionada: ASA {chain_data['asa_size']}")
-    print(f"Passo lido do catálogo: {result['pitch_mm']:.3f} mm")
-    print(f"Dentes menor z1: {result['z1']}")
-    print(f"Dentes maior z2: {result['z2']}")
-    print(f"Entrecentro desejado: {result['desired_center_distance_mm']:.3f} mm")
+    print(f"Selected chain: ASA {chain_data['asa_size']}")
+    print(f"Catalog pitch: {result['pitch_mm']:.3f} mm")
+    print(f"Smaller sprocket teeth z1: {result['z1']}")
+    print(f"Larger sprocket teeth z2: {result['z2']}")
+    print(f"Desired center distance: {result['desired_center_distance_mm']:.3f} mm")
     print()
-    print(f"Número contínuo estimado de elos: {continuous_links:.6f}")
-    print(f"Número inteiro adotado: {result['selected_links']}")
-    print(f"Elo de redução necessário: {'SIM' if result['offset_link_required'] else 'NÃO'}")
+    print(f"Estimated continuous link count: {continuous_links:.6f}")
+    print(f"Adopted integer link count: {result['selected_links']}")
+    print(f"Offset link required: {'YES' if result['offset_link_required'] else 'NO'}")
     print()
-    print(f"Entrecentro referência contínua para N: {result['reference_center_distance_mm']:.6f} mm")
-    print(f"Entrecentro real calculado: {result['real_center_distance_mm']:.6f} mm")
-    print(f"Entrecentro para uso de engenharia: {result['real_center_distance_mm']:.2f} mm")
-    print(f"Correção em relação ao desejado: {result['center_correction_vs_desired_mm']:+.6f} mm")
-    print(f"Correção em relação à referência contínua: {result['center_correction_vs_reference_mm']:+.6f} mm")
+    print(f"Continuous reference center distance for N: {result['reference_center_distance_mm']:.6f} mm")
+    print(f"Calculated real center distance: {result['real_center_distance_mm']:.6f} mm")
+    print(f"Engineering center distance: {result['real_center_distance_mm']:.2f} mm")
+    print(f"Correction relative to desired center distance: {result['center_correction_vs_desired_mm']:+.6f} mm")
+    print(f"Correction relative to continuous reference: {result['center_correction_vs_reference_mm']:+.6f} mm")
     print()
-    print(f"Diâmetro primitivo menor: {result['small_pitch_diameter_mm']:.6f} mm")
-    print(f"Diâmetro primitivo maior: {result['large_pitch_diameter_mm']:.6f} mm")
-    print(f"Comprimento da corrente: {result['chain_length_mm']:.6f} mm")
+    print(f"Smaller sprocket pitch diameter: {result['small_pitch_diameter_mm']:.6f} mm")
+    print(f"Larger sprocket pitch diameter: {result['large_pitch_diameter_mm']:.6f} mm")
+    print(f"Chain length: {result['chain_length_mm']:.6f} mm")
     print()
-    print("Topologia por rolos em contato:")
+    print("Topology by contact rollers:")
     print(f"  M1/S/M2/R = {topology.roller_label()}")
-    print("Topologia por intervalos de passo:")
+    print("Topology by pitch intervals:")
     print(f"  intervals = {topology.interval_label()}")
     print()
-    print("Ângulos de contato calculados por simetria:")
-    print(f"  menor topo: {result['small_top_angle_deg']:.6f}°")
-    print(f"  menor fundo: {result['small_bottom_angle_deg']:.6f}°")
-    print(f"  maior topo: {result['large_top_angle_deg']:.6f}°")
-    print(f"  maior fundo: {result['large_bottom_angle_deg']:.6f}°")
-    print(f"  fase da engrenagem maior: {result['large_phase_angle_deg']:.6f}°")
+    print("Contact angles calculated by symmetry:")
+    print(f"  smaller sprocket top: {result['small_top_angle_deg']:.6f}°")
+    print(f"  smaller sprocket bottom: {result['small_bottom_angle_deg']:.6f}°")
+    print(f"  larger sprocket top: {result['large_top_angle_deg']:.6f}°")
+    print(f"  larger sprocket bottom: {result['large_bottom_angle_deg']:.6f}°")
+    print(f"  larger sprocket phase angle: {result['large_phase_angle_deg']:.6f}°")
     print()
-    print("Estimativas contínuas usadas para priorização topológica:")
+    print("Continuous estimates used for topology prioritization:")
     print(f"  small arc intervals estimate: {small_arc_estimate:.6f}")
     print(f"  large arc intervals estimate: {large_arc_estimate:.6f}")
     print(f"  straight run intervals estimate: {run_estimate:.6f}")
     print(f"  topology error: {result['topology_error']:.6f}")
     print()
-    print(f"Candidatos válidos encontrados: {result['candidate_count']}")
-    print(f"Erro máximo no comprimento dos elos: {result['max_edge_error_mm']:.3e} mm")
-    print(f"Erro médio no comprimento dos elos: {result['mean_edge_error_mm']:.3e} mm")
-    print(f"Auto-interseções detectadas: {result['self_intersections']}")
+    print(f"Valid candidates found: {result['candidate_count']}")
+    print(f"Maximum link length error: {result['max_edge_error_mm']:.3e} mm")
+    print(f"Mean link length error: {result['mean_edge_error_mm']:.3e} mm")
+    print(f"Detected self-intersections: {result['self_intersections']}")
     print()
-    print("Dados do catálogo:")
-    print(f"  Largura interna E: {chain_data['inner_width_E_mm']:.3f} mm")
-    print(f"  Diâmetro do rolo R: {chain_data['roller_diameter_R_mm']:.3f} mm")
-    print(f"  Altura da placa H: {chain_data['plate_height_H_mm']:.3f} mm")
-    print(f"  Diâmetro do pino G: {chain_data['pin_diameter_G_mm']:.3f} mm")
-    print(f"  Largura total L: {chain_data['overall_width_L_mm']:.3f} mm")
-    print(f"  Carga de ruptura: {chain_data['breaking_load_kgf']:.1f} kgf")
-    print(f"  Peso: {chain_data['weight_kg_per_m']:.3f} kg/m")
+    print("Catalog data:")
+    print(f"  Inner width E: {chain_data['inner_width_E_mm']:.3f} mm")
+    print(f"  Roller diameter R: {chain_data['roller_diameter_R_mm']:.3f} mm")
+    print(f"  Plate height H: {chain_data['plate_height_H_mm']:.3f} mm")
+    print(f"  Pin diameter G: {chain_data['pin_diameter_G_mm']:.3f} mm")
+    print(f"  Overall width L: {chain_data['overall_width_L_mm']:.3f} mm")
+    print(f"  Breaking load: {chain_data['breaking_load_kgf']:.1f} kgf")
+    print(f"  Weight: {chain_data['weight_kg_per_m']:.3f} kg/m")
 
 
 def plot_result(result: dict[str, Any], chain_data: dict[str, Any]) -> None:
@@ -1093,19 +1093,18 @@ def plot_polygonal_layout(result: dict[str, Any], chain_data: dict[str, Any]) ->
     ax.set_title(
         f"ASA {chain_data['asa_size']} | "
         f"z1={result['z1']}, z2={result['z2']} | "
-        f"C real={C:.2f} mm | N={result['selected_links']}"
+        f"C_real={C:.2f} mm | N={result['selected_links']}"
     )
     ax.legend(loc="best")
 
     fig.tight_layout()
     plt.show(block=True)
 
-
-def find_chain_dimension_image(image_name: str = "enco_asa_dimensions.png") -> str:
+def find_chain_dimension_image(image_name: str = "enco_asa_dimensions.png") -> Path:
     """
     Locate the chain dimension reference image.
 
-    The project structure expected by this function is:
+    Expected repository structure:
 
         chain-drive-geometry-calculator/
         ├── src/
@@ -1115,7 +1114,7 @@ def find_chain_dimension_image(image_name: str = "enco_asa_dimensions.png") -> s
 
     Returns
     -------
-    str
+    Path
         Absolute path to the image file.
 
     Raises
@@ -1139,14 +1138,13 @@ def find_chain_dimension_image(image_name: str = "enco_asa_dimensions.png") -> s
 
     for path in candidate_paths:
         if path.exists():
-            return str(path)
+            return path
 
     searched_paths = "\n".join(str(path) for path in candidate_paths)
 
     raise FileNotFoundError(
         f"Could not find '{image_name}'. Searched in:\n{searched_paths}"
-    )  
-
+    )
 def plot_chain_dimension_sheet(result: dict[str, Any], chain_data: dict[str, Any]) -> None:
     image_path = find_chain_dimension_image()
     dimension_image = mpimg.imread(image_path)
@@ -1315,36 +1313,37 @@ def plot_chain_dimension_sheet(result: dict[str, Any], chain_data: dict[str, Any
 
 def main() -> None:
     print("=" * 72)
-    print("ASA ROLLER CHAIN DRIVE CALCULATOR - SPYDER LOCAL - V4")
+    print("ASA ROLLER CHAIN DRIVE CALCULATOR")
+    print("Discrete polygonal roller-center model for ASA roller chains")
     print("=" * 72)
-    print("1. Selecione a corrente ASA do catálogo.")
-    print("2. Informe dentes da menor e da maior.")
-    print("3. O programa calcula o entrecentro mínimo permitido.")
-    print("4. Informe o entrecentro desejado.")
-    print("5. O programa calcula N pelo entrecentro desejado.")
-    print("6. Depois resolve C pelo modelo poligonal simétrico por rolos.")
+    print("1. Select the ASA chain size from the catalog.")
+    print("2. Enter the smaller and larger sprocket tooth counts.")
+    print("3. The program calculates the minimum allowed center distance.")
+    print("4. Enter the desired center distance.")
+    print("5. The program estimates N from the desired center distance.")
+    print("6. The program then solves C using the symmetric polygonal roller-center model.")
 
     chain_data = ask_chain_size()
     pitch_mm = float(chain_data["pitch_mm"])
 
     print()
-    print(f"Corrente selecionada: ASA {chain_data['asa_size']}")
-    print(f"Passo: {pitch_mm:.3f} mm")
+    print(f"Selected chain: ASA {chain_data['asa_size']}")
+    print(f"Pitch: {pitch_mm:.3f} mm")
 
     z1 = ask_sprocket_teeth(
-        "Número de dentes da engrenagem menor z1",
+        "Number of teeth on the smaller sprocket z1",
         chain_data,
     )
 
     z2 = ask_sprocket_teeth(
-        "Número de dentes da engrenagem maior z2",
+        "Number of teeth on the larger sprocket z2",
         chain_data,
     )
 
     if z1 > z2:
         print()
-        print("AVISO: z1 foi informado maior que z2.")
-        print("O programa vai inverter os valores para manter z1 como engrenagem menor.")
+        print("WARNING: z1 was entered as greater than z2.")
+        print("The program will swap the values to keep z1 as the smaller sprocket.")
         z1, z2 = z2, z1
 
     roller_diameter_mm = float(chain_data["roller_diameter_R_mm"])
@@ -1371,16 +1370,16 @@ def main() -> None:
 
     print()
     print("=" * 72)
-    print("VERIFICAÇÃO DE ENTRECENTRO MÍNIMO")
+    print("MINIMUM CENTER DISTANCE CHECK")
     print("=" * 72)
-    print(f"Diâmetro externo máximo 1: {outer_diameter_1_max:.3f} mm")
-    print(f"Diâmetro externo máximo 2: {outer_diameter_2_max:.3f} mm")
-    print("Folga mínima adotada: 5.000 mm")
+    print(f"Maximum outer diameter 1: {outer_diameter_1_max:.3f} mm")
+    print(f"Maximum outer diameter 2: {outer_diameter_2_max:.3f} mm")
+    print("Adopted minimum clearance: 5.000 mm")
     print()
-    print(f"Entrecentro mínimo permitido: {minimum_center_distance_mm:.3f} mm")
+    print(f"Minimum allowed center distance: {minimum_center_distance_mm:.3f} mm")
 
     desired_center_distance_mm = ask_center_distance(
-        "Entrecentro desejado [mm]: ",
+        "Desired center distance [mm]: ",
         minimum_center_distance_mm,
     )
 
@@ -1395,14 +1394,14 @@ def main() -> None:
 
     print()
     print("=" * 72)
-    print("DEFINIÇÃO DO NÚMERO DE ELOS")
+    print("LINK COUNT DEFINITION")
     print("=" * 72)
-    print(f"Número contínuo estimado de elos: {continuous_links:.6f}")
-    print(f"Número inteiro adotado: {selected_links}")
-    print(f"Elo de redução necessário: {'SIM' if selected_links % 2 != 0 else 'NÃO'}")
+    print(f"Estimated continuous link count: {continuous_links:.6f}")
+    print(f"Adopted integer link count: {selected_links}")
+    print(f"Offset link required: {'YES' if selected_links % 2 != 0 else 'NO'}")
 
     print()
-    print("Processando modelo poligonal V4 simétrico...")
+    print("Processing the symmetric polygonal roller-center model...")
 
     result = solve_symmetric_polygonal_center_distance(
         pitch_mm=pitch_mm,
