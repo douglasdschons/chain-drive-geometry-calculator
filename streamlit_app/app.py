@@ -303,7 +303,7 @@ if PRESENTATION_IMAGE_PATH.exists():
 else:
     st.info(
         "Presentation image not found. "
-        "Add `assets/chain_drive_presentation.png` to display a project image here."
+        "Add `assets/instructions.png` to display a project image here."
     )
 
 st.markdown(
