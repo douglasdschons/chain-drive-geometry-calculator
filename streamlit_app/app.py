@@ -55,7 +55,7 @@ st.set_page_config(
 GITHUB_REPOSITORY_URL = "https://github.com/douglasdschons/chain-drive-geometry-calculator"
 AUTHOR_GITHUB_URL = "https://github.com/douglasdschons"
 DOCUMENTATION_PDF_PATH = DOCS_DIR / "complete_mathematical_formulation_en.pdf"
-PRESENTATION_IMAGE_PATH = ASSETS_DIR / "instructions.png"
+PRESENTATION_IMAGE_PATH = ASSETS_DIR / "chain_drive_presentation.png"
 CHAIN_DIMENSION_IMAGE_PATH = ASSETS_DIR / "enco_asa_dimensions.png"
 
 
@@ -303,7 +303,7 @@ if PRESENTATION_IMAGE_PATH.exists():
 else:
     st.info(
         "Presentation image not found. "
-        "Add `assets/instructions.png` to display a project image here."
+        "Add `assets/chain_drive_presentation.png` to display a project image here."
     )
 
 st.markdown(
